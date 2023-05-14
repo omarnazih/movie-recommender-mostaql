@@ -29,4 +29,4 @@ def get_content_recommendations(title):
     return jsonify({'data': recommendations, 'status': 200})
 
 if __name__ == '__main__':
-    app.run()    
+    app.run(port="0.0.0.0",debug=True)
