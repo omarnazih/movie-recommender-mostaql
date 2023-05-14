@@ -344,11 +344,11 @@ def hybrid_recommendations(userId, title):
     
     return recommendations
 
-print(hybrid_recommendations(1, "The Frighteners"))
+print(hybrid_recommendations(1, "The Mummy"))
 
-print(content_recommendations("The Frighteners"))
+# print(content_recommendations("The Frighteners"))
 
-post_user_ratings(1000 ,"karim" , 282035 , "test1" , 4.5 , "good")
+# post_user_ratings(1000 ,"karim" , 282035 , "test1" , 4.5 , "good")
 
-get_user_ratings
+# get_user_ratings
 
