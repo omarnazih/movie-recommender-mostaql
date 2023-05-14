@@ -11,8 +11,6 @@ Original file is located at
 ![](http://labs.criteo.com/wp-content/uploads/2017/08/CustomersWhoBought3.jpg)
 """
 
-pip install surprise
-
 import pandas as pd
 import numpy as np
 import ast, json
@@ -32,7 +30,7 @@ import warnings; warnings.simplefilter('ignore')
 
 """
 
-md = pd. read_csv('../input/movies_metadata.csv')
+md = pd. read_csv('./input/movies_metadata.csv')
 #md
 
 md['genres'] = md['genres'].fillna('[]').apply(literal_eval).apply(lambda x: [i['name'] for i in x] if isinstance(x, list) else [])
@@ -85,7 +83,7 @@ def build_chart(genre, percentile=0.85):
 
 """
 
-links_small = pd.read_csv('../input/links_small.csv')
+links_small = pd.read_csv('./input/links_small.csv')
 links_small = links_small[links_small['tmdbId'].notnull()]['tmdbId'].astype('int')
 
 #md = md.drop([19730, 29503, 35587])
@@ -117,23 +115,37 @@ smd = smd.reset_index()
 titles = smd['title']
 indices = pd.Series(smd.index, index=smd['title'])
 
+# def content_recommendations(title):
+#     idx = indices[title]
+#     sim_scores = list(enumerate(cosine_sim[idx]))
+#     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+#     sim_scores = sim_scores[1:31]
+#     movie_indices = [i[0] for i in sim_scores]
+#     movies = smd.iloc[movie_indices][['title', 'year', 'id' , 'imdb_id']]
+    
+#     return movies[['title','id','imdb_id']]
+
 def content_recommendations(title):
     idx = indices[title]
     sim_scores = list(enumerate(cosine_sim[idx]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
     sim_scores = sim_scores[1:31]
     movie_indices = [i[0] for i in sim_scores]
-    movies = smd.iloc[movie_indices][['title', 'year', 'id' , 'imdb_id']]
+    movies = smd.iloc[movie_indices][['title', 'year', 'id', 'imdb_id']]
     
-    return movies[['title','id','imdb_id']]
+    # Convert the DataFrame to a list of dictionaries
+    recommendations = movies[['title', 'id', 'imdb_id']].to_dict(orient='records')
+    
+    return recommendations
+
 
 """### Metadata Based Recommender
 
 """
 
-credits = pd.read_csv('../input/credits.csv')
+credits = pd.read_csv('./input/credits.csv')
 credits=credits[["cast" ,"crew" , "id" ]]
-keywords = pd.read_csv('../input/keywords.csv')
+keywords = pd.read_csv('./input/keywords.csv')
 
 keywords['id'] = keywords['id'].astype('int')
 credits['id'] = credits['id'].astype('int')
@@ -227,14 +239,14 @@ indices = pd.Series(smd.index, index=smd['title'])
 reader = Reader()
 svd = SVD()
 
-ratings = pd.read_csv('../input/ratings_small.csv')
+ratings = pd.read_csv('./input/ratings_small.csv')
 #ratings.head()
 
 get_user_ratings = None
-ratings_table = pd.read_csv('../input/ratings_table.csv')
+ratings_table = pd.read_csv('./input/ratings_table.csv')
 
 def post_user_ratings(userId,userName,movieId,movieName,rating,review):
-    links_small_map = pd.read_csv('../input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
+    links_small_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
     tagret_movie = links_small_map[links_small_map['tmdbId'] == movieId]
     tagret_id = tagret_movie['movieId'].iloc[0]
     ratings.loc[len(ratings)] = [userId, tagret_id, rating,"Nulled"]
@@ -246,7 +258,7 @@ def post_user_ratings(userId,userName,movieId,movieName,rating,review):
     return ratings_table
     
 def post_SVD(userId,userName,movieId,movieName,rating,review):
-    links_small_map = pd.read_csv('../input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
+    links_small_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
     tagret_movie = links_small_map[links_small_map['tmdbId'] == movieId]
     tagret_id = tagret_movie['movieId'].iloc[0]
     ratings.loc[len(ratings)] = [userId, tagret_id, rating,"Nulled"]
@@ -285,13 +297,31 @@ def convert_int(x):
     except:
         return np.nan
 
-id_map = pd.read_csv('../input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
+id_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
 id_map['tmdbId'] = id_map['tmdbId'].apply(convert_int)
 id_map.columns = ['movieId', 'imdbId' , 'id']
 id_map = id_map.merge(smd[['title', 'id']], on='id').set_index('title')
 
 indices_map = id_map.set_index('id')
 #print(indices_map)
+
+# def hybrid_recommendations(userId, title):
+#     idx = indices[title]
+#     tmdbId = id_map.loc[title]['id']
+#     imdbId = id_map.loc[title]['imdbId']
+#     movie_id = id_map.loc[title]['movieId']
+    
+#     #cosine_sim = linear_kernel(tfidf_matrix, tfidf_matrix)
+#     sim_scores = list(enumerate(cosine_sim[int(idx)]))
+#     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
+#     sim_scores = sim_scores[1:31]
+#     movie_indices = [i[0] for i in sim_scores]
+#     movies = smd.iloc[movie_indices][['title', 'year', 'id' , 'imdb_id']]
+    
+#     movies['est'] = movies['id'].apply(lambda x: svd.predict(userId, indices_map.loc[x]['movieId'] , r_ui=None).est)
+#     movies = movies.sort_values('est', ascending=False)
+    
+#     return movies[['title','id','imdb_id']]
 
 def hybrid_recommendations(userId, title):
     idx = indices[title]
@@ -309,11 +339,14 @@ def hybrid_recommendations(userId, title):
     movies['est'] = movies['id'].apply(lambda x: svd.predict(userId, indices_map.loc[x]['movieId'] , r_ui=None).est)
     movies = movies.sort_values('est', ascending=False)
     
-    return movies[['title','id','imdb_id']]
+    # Convert the DataFrame to a list of dictionaries
+    recommendations = movies[['title', 'id', 'imdb_id']].to_dict(orient='records')
+    
+    return recommendations
 
-hybrid_recommendations(1, "The Frighteners")
+print(hybrid_recommendations(1, "The Frighteners"))
 
-content_recommendations("The Frighteners")
+print(content_recommendations("The Frighteners"))
 
 post_user_ratings(1000 ,"karim" , 282035 , "test1" , 4.5 , "good")
 
