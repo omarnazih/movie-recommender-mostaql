@@ -115,16 +115,7 @@ smd = smd.reset_index()
 titles = smd['title']
 indices = pd.Series(smd.index, index=smd['title'])
 
-# def content_recommendations(title):
-#     idx = indices[title]
-#     sim_scores = list(enumerate(cosine_sim[idx]))
-#     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-#     sim_scores = sim_scores[1:31]
-#     movie_indices = [i[0] for i in sim_scores]
-#     movies = smd.iloc[movie_indices][['title', 'year', 'id' , 'imdb_id']]
-    
-#     return movies[['title','id','imdb_id']]
-
+# One of 2 main recommendation functions
 def content_recommendations(title):
     idx = indices[title]
     sim_scores = list(enumerate(cosine_sim[idx]))
@@ -156,20 +147,10 @@ md.shape
 md = md.merge(credits, on='id')
 md = md.merge(keywords, on='id')
 
-#md['id'].value_counts()
-
-#md[md['id']==0]
-
-#drops index with non english movies titles and fully credits
-#md = md.drop([411, 412, 413,414,415,416,417,418,651,652,653,678,679,680,730,56,732,451,43,641,48,712,74])
-
-#drops index with only english movies titles and fully credits
-#md = md.drop([556,557,558,538,539,540,69,53,372,40,45,530])
 
 #drops index with only english movies titles and 800 credits
 md = md.drop([69,53,372,530,40,554,538,45])
 
-#md['id'].value_counts()
 
 smd = md[md['id'].isin(links_small)]
 #smd
@@ -245,36 +226,50 @@ ratings = pd.read_csv('./input/ratings_small.csv')
 get_user_ratings = None
 ratings_table = pd.read_csv('./input/ratings_table.csv')
 
-def post_user_ratings(userId,userName,movieId,movieName,rating,review):
-    links_small_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
-    tagret_movie = links_small_map[links_small_map['tmdbId'] == movieId]
-    tagret_id = tagret_movie['movieId'].iloc[0]
-    ratings.loc[len(ratings)] = [userId, tagret_id, rating,"Nulled"]
-    veiw_ratings = ratings_table.loc[len(ratings_table)] = [userId, userName , tagret_id , movieName , rating, review ]
-    def return_ratings():
-        return ratings_table
-    global get_user_ratings 
-    get_user_ratings= return_ratings()
-    return ratings_table
+def post_user_ratings(userId, userName, movieId, movieName, rating, review):
+    links_small_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId', 'tmdbId']]
+    target_movie = links_small_map[links_small_map['tmdbId'] == movieId]
+    if not target_movie.empty:
+        target_id = target_movie['movieId'].iloc[0]
+    else:
+        # Handle the case where target_movie is empty
+        # Set a default or return an error message, depending on your requirement
+        target_id = None  # or raise an exception or return an error message
+
+    ratings.loc[len(ratings)] = [userId, target_id, rating, "Nulled"]
+    view_ratings = ratings_table.loc[len(ratings_table)] = [userId, userName, target_id, movieName, rating, review]
     
-def post_SVD(userId,userName,movieId,movieName,rating,review):
-    links_small_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId' , 'tmdbId']]
-    tagret_movie = links_small_map[links_small_map['tmdbId'] == movieId]
-    tagret_id = tagret_movie['movieId'].iloc[0]
-    ratings.loc[len(ratings)] = [userId, tagret_id, rating,"Nulled"]
-    veiw_ratings = ratings_table.loc[len(ratings_table)] = [userId, userName , tagret_id , movieName , rating, review ]
+    def return_ratings():
+        return ratings_table.to_dict(orient='records')
+    
+    global get_user_ratings
+    get_user_ratings = return_ratings()
+    
+    return get_user_ratings
+    
+def post_SVD(userId, userName, movieId, movieName, rating, review):
+    links_small_map = pd.read_csv('./input/links_small.csv')[['movieId', 'imdbId', 'tmdbId']]
+    target_movie = links_small_map[links_small_map['tmdbId'] == movieId]
+    target_id = target_movie['movieId'].iloc[0]
+    ratings.loc[len(ratings)] = [userId, target_id, rating, "Nulled"]
+    view_ratings = ratings_table.loc[len(ratings_table)] = [userId, userName, target_id, movieName, rating, review]
+
     reader = Reader()
     svd = SVD()
     data = Dataset.load_from_df(ratings[['userId', 'movieId', 'rating']], reader)
     cross_validate(svd, data, measures=['RMSE', 'MAE'], cv=5, verbose=True)
     trainset = data.build_full_trainset()
     svd.fit(trainset)
+
     def return_ratings():
-        #return ratings
-        return ratings_table
-    global get_user_ratings 
-    get_user_ratings= return_ratings()
-    return ratings_table
+        # return ratings
+        return ratings_table.to_dict(orient='records')
+
+    global get_user_ratings
+    get_user_ratings = return_ratings()
+
+    return get_user_ratings
+
 
 data = Dataset.load_from_df(ratings[['userId', 'movieId', 'rating']], reader)
 
@@ -344,11 +339,11 @@ def hybrid_recommendations(userId, title):
     
     return recommendations
 
-print(hybrid_recommendations(1, "The Mummy"))
+# print(hybrid_recommendations(1, "The Mummy"))
 
 # print(content_recommendations("The Frighteners"))
 
-# post_user_ratings(1000 ,"karim" , 282035 , "test1" , 4.5 , "good")
+print(post_user_ratings(1000 ,"karim" , 282035 , "test1" , 4.5 , "good"))
 
-# get_user_ratings
+print(get_user_ratings)
 
